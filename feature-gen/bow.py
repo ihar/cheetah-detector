@@ -8,9 +8,11 @@ from time import gmtime, strftime
 import cPickle #to save k-means model to file and read it later
 
 # Where the whole image set is
-SRC_DIR = 'd:/cheetah_trials/cheetah/cheetah2-train/'
+#SRC_DIR = 'd:/cheetah_trials/cheetah/cheetah2-train/'
+SRC_DIR = 'd:/cheetah/cheetah2-train/'
 # Description of the files with the class labels
-CSV_FILE = 'd:/cheetah_trials/cheetah/metadata-cleaned_up.csv'
+#CSV_FILE = 'd:/cheetah_trials/cheetah/metadata-cleaned_up.csv'
+CSV_FILE = 'd:/cheetah/metadata-cleaned_up.csv'
 
 # How many pockets should be in BOW histogram
 # Dimension of an image feature vector
@@ -23,7 +25,7 @@ FEATURE = 'surf'
 
 # Should the script generate a codebook (centers of CLUSTER_COUNT clusters)
 # for future use in feature vector generating?
-GENERATE_CODEBOOK = True
+GENERATE_CODEBOOK = False
 
 # Should the script generate feature vector for each image from the image set
 # and save it to a file for future use in classification?
@@ -129,7 +131,7 @@ def read_codebook_from_file(fname):
 
 # Find BoW for an image
 def get_bow(model, fname, feature_name, src_dir):
-    img_path = src_dir + fname + '.jpg'
+    img_path = src_dir + fname
     img_features = extract_img_feature(img_path, feature_name)
     if None == img_features or 128 != img_features.shape[1]:
         return None

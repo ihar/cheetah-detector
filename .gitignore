@@ -3,3 +3,7 @@
 
 # Too detailed description of the competition
 competition-info/*.doc*
+
+# Generated files
+*.csv
+*.cb
