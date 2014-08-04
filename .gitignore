@@ -1,0 +1,5 @@
+# PyCharm IDE settings
+.idea/
+
+# Too detailed description of the competition
+competition-info/*.doc*
