@@ -7,3 +7,5 @@ competition-info/*.doc*
 # Generated files
 *.csv
 *.cb
+
+*.pyc

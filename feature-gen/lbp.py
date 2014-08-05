@@ -1,17 +1,22 @@
+# Local binary patterns for image classification
+
 import csv
 from time import gmtime, strftime
-import numpy as np
-import mahotas # for local binary patterns
+import mahotas
 import cv2
 
-src_dir = 'd:/cheetah/cheetah2-train-preprocessed/'
-csv_file = 'd:/cheetah/cheetah2-train/metadata.csv'
-# radius=1, neigbors=8
-#output_file = 'lbp-1-8.csv'
+SRC_DIR = 'd:/cheetah_trials/cheetah/cheetah2-train/'
+#SRC_DIR = 'd:/cheetah/cheetah2-train/'
+# Description of the files with the class labels
+CSV_FILE = 'd:/cheetah_trials/cheetah/metadata-cleaned_up.csv'
+#CSV_FILE = 'd:/cheetah/metadata-cleaned_up.csv'
+
+PATTERN_RADIUS = 1
+PATTERN_NEIGHBORS = 8
 
 # Read list of image paths with labels from a csv file
-def read_im_info(fname):
-    with open(csv_file, 'rb') as fname:
+def read_im_info(csv_fname):
+    with open(csv_fname, 'rb') as fname:
         data = list(tuple(rec) for rec in csv.reader(fname, delimiter=','))
     # Remove header of the csv file from the list
     del data[0]
@@ -28,7 +33,15 @@ def split_image_info(data):
             bad_list.append(item)
         else:
             good_list.append(item)
-    return  bad_list, good_list
+    return bad_list, good_list
+
+# Preprocess image
+def preprocess_img(image_in):
+    # Preprocessing step: histogram equalization and reduced image size proportionally to width 300 pixels
+    img = cv2.equalizeHist(image_in)
+    scale_factor = 300.0/img.shape[:2][1]
+    small_img = cv2.resize(img, None, fx=scale_factor, fy=scale_factor)
+    return small_img
 
 # Extract histogram of lbp
 def extract_lbp_hist(im_path, r, n):
@@ -36,49 +49,34 @@ def extract_lbp_hist(im_path, r, n):
     if None == img:
         print "Can't read image " + im_path + "!"
         return None
+    img = preprocess_img(img)
     return mahotas.features.lbp(img, r, n)
 
 # Calculate image features and gather them in a nparray
-def get_all_features(flist, r, n):
+def get_all_features(flist, r, n, src_dir):
     print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " LBP parameters:"
-    print " radius = " + str(r) + ", neigbors = " + str(n)
-    print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Calculate images features..."
-    output_file = 'lbp-' + str(r) + '-' + str(n) + 'csv'
-    des = []
+    print " radius = " + str(r) + ", neighbors = " + str(n)
+    output_file = 'lbp-' + str(r) + '-' + str(n) + '.csv'
     i = 0
     out_csv = csv.writer(open(output_file, 'wb'))
+    len_flist = len(flist)
     for fname in flist:
-        img_path = src_dir + fname[0] + '.jpg'
+        img_path = src_dir + fname[0]
         curr_img_features = extract_lbp_hist(img_path, r, n)
         if None == curr_img_features:
             print "\t Wrond descriptors' dimensions: " + img_path
             continue
-        curr_row = [fname[2]] + [fname[0]] + [str(i) for i in curr_img_features]
+        curr_row = [fname[2]] + [fname[0]] + [str(k) for k in curr_img_features]
         out_csv.writerow(curr_row)
         i = i + 1
-        if 0 == i % 100:
-            print "\t" + str(i) + " of " + str(len(flist))
-    print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Done."
+        if 0 == i % 500:
+            percent = 100.0*i/len_flist
+            print "\t" + str(i) + " of " + str(len(flist)) + ', ' + str(round(percent, 2)) + '%'
     return 1
-
-# # flist - list of files
-# # r - radius, n - number of neighbors
-# def process_lbp(flist, r, n):
-#     print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " LBP parameters:"
-#     print " radius = " + str(r) + ", neigbors = " + str(n)
-#     print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Calculate images features..."
-#     all_features = get_all_features(flist, r, n)
-#     print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Done."
-#     output_file = 'lbp-' + str(r) + '-' + str(n) + 'csv'
-#     with open(output_file, "wb") as f:
-#         writer = csv.writer(f)
-#         writer.writerows(all_features)
-#     print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Features are saved."
 
 if __name__ == '__main__':
     print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Read files info..."
-    flist = read_im_info(csv_file)
-    get_all_features(flist, 1, 8)
-    get_all_features(flist, 2, 16)
-    # Too large file
-    #process_lbp(flist[1:5], 3, 24)
+    flist = read_im_info(CSV_FILE)
+    print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Calculating LBP..."
+    get_all_features(flist, PATTERN_RADIUS, PATTERN_NEIGHBORS, SRC_DIR)
+    print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Done."

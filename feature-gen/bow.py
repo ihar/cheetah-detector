@@ -180,7 +180,7 @@ if __name__ == '__main__':
         for fline in flist:
             img_counter = img_counter + 1
             hist = get_bow(kmeans, fline[0], FEATURE, SRC_DIR)
-            # If can't find any keypoint on an image, made histogram of zeroes
+            # If can't find any keypoint on an image, made a histogram of zeroes
             if (hist is None) or (len(hist) != CLUSTER_COUNT):
                 hist = [0]*CLUSTER_COUNT
             curr_row = [fline[2]] + [fline[0]] + [str(i) for i in hist]
