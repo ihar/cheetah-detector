@@ -6,6 +6,9 @@ competition-info/*.doc*
 
 # Generated files
 *.csv
-*.cb
+*.log
+feature-gen/*.cb
+parameter-sel/*.model
 
 *.pyc
+*.log
