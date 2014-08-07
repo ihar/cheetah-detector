@@ -61,10 +61,9 @@ if __name__ == '__main__':
 
     assert data_mat.shape[0] == class_labels.shape[0], 'Wrong dimensions of numpy arrays!'
 
-    # Find best parameter set for gradient boosted trees
-    print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Find an optimal parameter set for GBT..."
-
     if (not os.path.exists(COARSE_MODEL_FILE)):
+        # Find best parameter set for gradient boosted trees
+        print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Find a semi-optimal parameter set for GBT..."
         # param_grid = {'learning_rate': [0.1, 0.05, 0.01],
         #               'max_depth': [4, 6],
         #               'min_samples_leaf': [3, 9, 17],
@@ -73,8 +72,8 @@ if __name__ == '__main__':
                       'max_depth': [4],
                       'min_samples_leaf': [9],
                       'max_features': [1.0]}
-        sss = StratifiedShuffleSplit(class_labels, 5, test_size=0.25, random_state=530)
-        gscv = GridSearchCV(estimator=GradientBoostingRegressor(n_estimators=2000), param_grid=param_grid, scoring='roc_auc', n_jobs=3, cv=sss, verbose=2)
+        sss = StratifiedShuffleSplit(class_labels, 3, test_size=0.25, random_state=530)
+        gscv = GridSearchCV(estimator=GradientBoostingRegressor(n_estimators=1000), param_grid=param_grid, scoring='roc_auc', n_jobs=3, cv=sss, verbose=2)
         gscv.fit(data_mat, class_labels)
 
         print "Best parameters set found on cv set:"
@@ -89,17 +88,19 @@ if __name__ == '__main__':
             print("%0.3f (+/-%0.03f) for %r" % (mean_score, scores.std(), params))
 
         with open(COARSE_MODEL_FILE, 'wb') as fid:
-            cPickle.dump(gscv, fid)
-            # cPickle.dump(gscv.best_estimator_, fid)
-    else:
+            cPickle.dump(gscv.best_estimator_, fid)
+
+    if (not os.path.exists(TUNED_MODEL_FILE)):
+        print strftime("%Y-%m-%d %H:%M:%S", gmtime()) + " Tune a model further, increase number of trees and check wider range for learning rate..."
         # File with a coarse model exists, load it and perform further tuning.
         # Set n_estimators higher (3000-4000) and tune learning_rate again
         coarse_gbt = read_gtb_model_from_file(COARSE_MODEL_FILE)
         print "Current parameters of the estimator:"
         print coarse_gbt.get_params()
-        param_grid = {'learning_rate': [0.1, 0.05, 0.025, 0.01]}
-        sss = StratifiedShuffleSplit(class_labels, 5, test_size=0.25, random_state=530)
-        gscv = GridSearchCV(estimator=coarse_gbt(n_estimators=3000), param_grid=param_grid, scoring='roc_auc', n_jobs=3, cv=sss, verbose=2)
+        param_grid = {'learning_rate': [0.1, 0.05, 0.025, 0.01],
+                      'n_estimators': [2000, 3000]}
+        sss = StratifiedShuffleSplit(class_labels, 3, test_size=0.25, random_state=530)
+        gscv = GridSearchCV(estimator=coarse_gbt, param_grid=param_grid, scoring='roc_auc', n_jobs=3, cv=sss, verbose=2)
         gscv.fit(data_mat, class_labels)
         print "Best parameters set found on cv set:"
         print gscv.best_estimator_
