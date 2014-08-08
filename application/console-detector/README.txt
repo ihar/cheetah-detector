@@ -1,36 +1,40 @@
 ============================================
-Spotted Cats Detector, v0.2, console version
+Spotted Cats Detector, v0.1, console version
 ============================================
 
-Towel Stuff provides such and such and so and so. You might find
-it most useful for tasks involving <x> and also <y>. Typical usage
-often looks like this:
+Console version of the Spotted Cat Detector tries to predict presence of a spotted cat on an image.
 
-    blah-blah-blah
+Typical usage looks like this:
 
+	console-detector.py input_source output.csv
 
-Paragraphs are separated by blank lines. *Italics*, **bold**,
-and ``monospace`` look like this.
+where
+		input_source	- either path to directory with an image set or text file including paths to images
+		output.csv		- where to save the results of prediction
 
+Examples:
+	
+	1)	console-detector.py ./path/to/img/dir output.csv
+		Take all images from the directory './path/to/img/dir'. For every image in the directory make a suggestion if there is a spotted cat.
+		Result, in form of real number from [0,1] put to text comma-separated file 'output.csv'
+		
+		Content of the 'output.csv' looks like path/to/image.jpg,probability
+		
+			d:\image-01.jpg,0.613826860006
+			d:\image-02,0.502818665636
+			d:\image-03,0.202661674923
 
-A Section
-=========
+	2)	console-detector.py ./path/to/img/list.txt output.csv
+		Take all images indicated in list.txt and make a sugestion if there is a spotted cat.
+		Result, in form of real number from [0,1] put to text comma-separated file 'output.csv'
+		
+		Content of list.txt looks like this
+			
+			d:\image-01.jpg
+			d:\image-02.jpg
+			d:\image-03.jpg
 
-Lists look like this:
+	
+All details about the prediction process are put into log file in the same directory.
+		
 
-* First
-
-* Second. Can be multiple lines
-  but must be indented properly.
-
-A Sub-Section
--------------
-
-Numbered lists look like you'd expect:
-
-1. hi there
-
-2. must be going
-
-Urls are http://like.this and links can be
-written `like this <http://www.example.com/foo/bar>`_.

@@ -1,1 +1,1 @@
-vx.x, 2014-xx-xx -- Initial release.
+v0.1, 2014-08-08 -- Initial release.
