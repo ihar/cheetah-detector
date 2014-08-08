@@ -17,13 +17,13 @@ All Python packages are taken as binary files from [Unofficial Windows Binaries 
 
 ## Current approach for spotted cats detection
 
-**Rearranging train data set.** There are images in data set that labeled as including a spotted cat, but, in fact, 
+**Rearranging train data set.** There are images in data set that labeled by organizers as including a spotted cat, but, in fact, 
   presenting hardly located part of it (small tip of a tail, gray blurred something in front of camera) or even not including a cat.
   We excluded such images from a train data set.
     
 ### Examples of the questionable sets
 
-All the next images labeled as including a cat. 
+All the next images labeled by organizers as including a cat. 
 
 #### Small tip of tail
 ![Small tip of a tail](./questionable-set3.jpg)
