@@ -27,7 +27,7 @@ GTB_MODEL_FILE = "./coarse-gtb.model"
 logger = logging.getLogger('cheetah-detector')
 logger.setLevel(logging.DEBUG)
 # In the file we will log detail information
-log_fname = strftime("%Y-%m-%d.log", gmtime())
+log_fname = strftime("%Y-%m-%d", gmtime())
 fh = logging.FileHandler(log_fname)
 fh.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -39,36 +39,39 @@ def error(message):
     sys.stderr.write(message + "\n")
     sys.exit(1)
 
-
 # Extracts full file names of images from a directoty
 # Test path: d:\cheetah_trials\gbm_detected_bad
 def extract_image_paths(dir_path):
     flist = [join(dir_path, f) for f in listdir(dir_path) if isfile(join(dir_path, f))]
     return flist
 
-
 # Check if all necessary files exist and load them.
 # We need precalculated codebook and a model file
 def load_model_files(codebook_file, gtb_model_file):
     if not exists(codebook_file):
-        error("Error: can't find a codebook in the working directory")
         logger.error('Can\'t find a codebook in the working directory')
+        error("Error: can't find a codebook in the working directory")
     if not exists(gtb_model_file):
-        error("Error: can't find a model file in the working directory")
         logger.error('Can\'t find a model file in the working directory')
+        error("Error: can't find a model file in the working directory")
 
     with open(codebook_file, 'rb') as fid:
-        codebook = cPickle.load(fid)
-        logger.debug('Load a codebook')
-    # TODO: check if the codebook is valid
+        try:
+            codebook = cPickle.load(fid)
+            logger.debug('Load a codebook')
+        except:
+            logger.error('Can\'t load the codebook ' + codebook_file)
+            error('Error: can\'t load the codebook ' + codebook_file)
 
     with open(gtb_model_file, 'rb') as fid:
-        model = cPickle.load(fid)
-        logger.debug('Load a model file')
-    # TODO: check if the model is valid
+        try:
+            model = cPickle.load(fid)
+            logger.debug('Load a model file')
+        except:
+            logger.error('Can\'t load the model ' + gtb_model_file)
+            error('Error: can\'t load the model ' + gtb_model_file)
 
     return codebook, model
-
 
 # Preprocess image
 def preprocess_img(image_in):
@@ -78,14 +81,9 @@ def preprocess_img(image_in):
     small_img = cv2.resize(img, None, fx=scale_factor, fy=scale_factor)
     return small_img
 
-
 # Extract image features
 # feature_name = {sift, surf, orb, brisk}
-def extract_img_feature(im_path, feature_name):
-    img = cv2.imread(im_path, 0)
-    if None == img:
-        return None
-    img = preprocess_img(img)
+def extract_img_feature(img, feature_name):
     if feature_name == 'sift':
         detector = cv2.SIFT()  # Not tested
     elif feature_name == 'surf':
@@ -101,7 +99,6 @@ def extract_img_feature(im_path, feature_name):
     kp, des = detector.detectAndCompute(img, None)
     return des
 
-
 # Find BoW for an image
 def get_bow(codebook, img_path, feature_name, cluster_count):
     img_features = extract_img_feature(img_path, feature_name)
@@ -111,31 +108,28 @@ def get_bow(codebook, img_path, feature_name, cluster_count):
     hist, bin_edges = np.histogram(pred, bins=cluster_count, range=(1, cluster_count), normed=True)
     return hist
 
-
 # Extract histogram of lbp
-def extract_lbp_hist(im_path, r, n):
-    img = cv2.imread(im_path, 0)
-    if None == img:
-        return None
-    img = preprocess_img(img)
+def extract_lbp_hist(img, r, n):
     return mahotas.features.lbp(img, r, n)
-
 
 # Get feature vector for an image
 def get_feature_vector(codebook, image_path):
-    # TODO: made image preprocessing once
-    bow = get_bow(codebook, image_path, 'surf', codebook.n_clusters)
+    img = cv2.imread(image_path, 0)
+    if None == img:
+        logger.warning('Can\'t read the image ' + image_path)
+        return None
+    img = preprocess_img(img)
+    bow = get_bow(codebook, img, 'surf', codebook.n_clusters)
     if (bow is None) or (len(bow) != codebook.n_clusters):
         logger.warning('Bad BoW descriptor for image ' + image_path)
         return None
-    lbp = extract_lbp_hist(image_path, 1, 8)
+    lbp = extract_lbp_hist(img, 1, 8)
     if lbp is None:
         logger.warning('Bad LBP descriptor for image ' + image_path)
         return None
 
     res = np.array(list(bow) + list(lbp)).astype(np.float32)
     return res
-
 
 # Given a model file and a feature vector, make prediction
 def make_prediction(model, feature):
@@ -216,3 +210,6 @@ if __name__ == '__main__':
     logger.info('Stop the application')
 
     print "\nDone."
+    print 'Predictions made: ' + str(predicted_images)
+    if (missing_images > 0):
+        print 'Could not predict ' + str(missing_images) + ' image(s)'
