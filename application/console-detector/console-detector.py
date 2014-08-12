@@ -6,11 +6,17 @@ import sys  # For an error message
 import argparse  # Command line arguments
 import pprint  # Pretty print some dictionaries (parameters of codebook and model)
 
+# It is to resolve windows executable dependencies
+from scipy import sparse
+from scipy import linalg
+
+import sklearn
+
 # Reading file list from a directory or from a text file
 from os import listdir
 from os.path import isdir, exists, isfile, join
 
-import cPickle  # Load codebook and model
+import cPickle
 
 import numpy as np  # Dealing with feature vectors
 
@@ -19,20 +25,24 @@ import csv  # Write result of prediction to a comma separated file
 # Image processing, SURF features
 import cv2
 # LBP features
-import mahotas
+from mahotas import features
 
-CODEBOOK_FILE = "./codebook-kmeans-500-500-50bins.cb"
-GTB_MODEL_FILE = "./coarse-gtb.model"
+CODEBOOK_FILE = './codebook.pkl'
+MODEL_FILE = './gtb.pkl'
 
 logger = logging.getLogger('cheetah-detector')
-logger.setLevel(logging.DEBUG)
-# In the file we will log detail information
-log_fname = strftime("%Y-%m-%d", gmtime())
-fh = logging.FileHandler(log_fname)
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+
+# Disable logging, because when GUI will be added, the logging won't be necessary
+logger.disabled = True
+
+# logger.setLevel(logging.DEBUG)
+# # In the file we will log detail information
+# log_fname = strftime("%Y-%m-%d", gmtime())
+# fh = logging.FileHandler(log_fname)
+# fh.setLevel(logging.DEBUG)
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# fh.setFormatter(formatter)
+# logger.addHandler(fh)
 
 # Prints a message to stderr and exits
 def error(message):
@@ -56,20 +66,24 @@ def load_model_files(codebook_file, gtb_model_file):
         error("Error: can't find a model file in the working directory")
 
     with open(codebook_file, 'rb') as fid:
-        try:
-            codebook = cPickle.load(fid)
-            logger.debug('Load a codebook')
-        except:
-            logger.error('Can\'t load the codebook ' + codebook_file)
-            error('Error: can\'t load the codebook ' + codebook_file)
+        codebook = cPickle.load(fid)
+        logger.debug('Load a codebook')
+        # try:
+        #     codebook = pickle.load(fid)
+        #     logger.debug('Load a codebook')
+        # except:
+        #     logger.error('Can\'t load the codebook ' + codebook_file)
+        #     error('Error: can\'t load the codebook ' + codebook_file)
 
     with open(gtb_model_file, 'rb') as fid:
-        try:
-            model = cPickle.load(fid)
-            logger.debug('Load a model file')
-        except:
-            logger.error('Can\'t load the model ' + gtb_model_file)
-            error('Error: can\'t load the model ' + gtb_model_file)
+        model = cPickle.load(fid)
+        logger.debug('Load a model file')
+        # try:
+        #     model = pickle.load(fid)
+        #     logger.debug('Load a model file')
+        # except:
+        #     logger.error('Can\'t load the model ' + gtb_model_file)
+        #     error('Error: can\'t load the model ' + gtb_model_file)
 
     return codebook, model
 
@@ -102,7 +116,7 @@ def extract_img_feature(img, feature_name):
 # Find BoW for an image
 def get_bow(codebook, img_path, feature_name, cluster_count):
     img_features = extract_img_feature(img_path, feature_name)
-    if None == img_features or codebook.cluster_centers_.shape[1] != img_features.shape[1]:
+    if (img_features is None) or (codebook.cluster_centers_.shape[1] != img_features.shape[1]):
         return None
     pred = codebook.predict(img_features)
     hist, bin_edges = np.histogram(pred, bins=cluster_count, range=(1, cluster_count), normed=True)
@@ -110,12 +124,12 @@ def get_bow(codebook, img_path, feature_name, cluster_count):
 
 # Extract histogram of lbp
 def extract_lbp_hist(img, r, n):
-    return mahotas.features.lbp(img, r, n)
+    return features.lbp(img, r, n)
 
 # Get feature vector for an image
 def get_feature_vector(codebook, image_path):
     img = cv2.imread(image_path, 0)
-    if None == img:
+    if 0 == img.size:
         logger.warning('Can\'t read the image ' + image_path)
         return None
     img = preprocess_img(img)
@@ -147,8 +161,8 @@ if __name__ == '__main__':
     logger.info('Start the application')
     logger.debug('Number of arguments: ' + str(len(sys.argv)))
     logger.debug('Argument list: ' + str(sys.argv))
-    logger.debug('Codebook file name: ' + CODEBOOK_FILE)
-    logger.debug('Model file name: ' + GTB_MODEL_FILE)
+    # logger.debug('Codebook file name: ' + CODEBOOK_FILE)
+    # logger.debug('Model file name: ' + GTB_MODEL_FILE)
 
     input_source = ''
     output_file = ''
@@ -165,8 +179,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     input_source = args.input
     output_file = args.output
+
     logger.debug("Input source: " + input_source)
     logger.debug("Output file: " + output_file)
+    logger.debug('Codebook file name: ' + CODEBOOK_FILE)
+    logger.debug('Model file name: ' + MODEL_FILE)
+
     if isdir(input_source):
         flist = extract_image_paths(input_source)
     elif isfile(input_source):
@@ -184,7 +202,7 @@ if __name__ == '__main__':
     # Read every image from the list, generate a feature vector
     # and make prediction based on codebook and model file
     logger.debug('Loading codebook and model file...')
-    codebook, gtb = load_model_files(CODEBOOK_FILE, GTB_MODEL_FILE)
+    codebook, gtb = load_model_files(CODEBOOK_FILE, MODEL_FILE)
     logger.debug('The codebook parameters: \r\n' + pprint.pformat(codebook.get_params(), width=1, indent=4))
     logger.debug('The model parameters: \r\n' + pprint.pformat(gtb.get_params(), width=1, indent=4))
     logger.info('Start making predictions')
@@ -194,7 +212,7 @@ if __name__ == '__main__':
     predicted_images = 0
     for fname in flist:
         feature = get_feature_vector(codebook, fname)
-        if None == feature:
+        if feature is None:
             logger.warning('Can\'t make a prediction for image ' + fname)
             missing_images = missing_images + 1
             continue
