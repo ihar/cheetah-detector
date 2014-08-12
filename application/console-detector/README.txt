@@ -34,7 +34,5 @@ Examples:
 			d:\image-02.jpg
 			d:\image-03.jpg
 
-	
-All details about the prediction process are put into log file in the same directory.
 		
 
