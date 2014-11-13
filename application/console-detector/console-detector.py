@@ -1,5 +1,14 @@
 #!/usr/bin/env python
 
+# Errors' codes
+#1   Error: can't find a codebook in the working directory
+#2   Error: can't find a model file in the working directory
+#3   Error: can't load the codebook   
+#4   Error: can't load the model
+#5   Error: unknown source of input data
+#6   Error: too few arguments
+#7   Error: too many arguments
+
 import logging  # Tracking events that happen when the application runs
 from time import gmtime, strftime  # Date-time for logging messages
 import sys  # For an error message
@@ -45,9 +54,9 @@ logger.disabled = True
 # logger.addHandler(fh)
 
 # Prints a message to stderr and exits
-def error(message):
+def error(message, code):
     sys.stderr.write(message + "\n")
-    sys.exit(1)
+    sys.exit(code)
 
 # Extracts full file names of images from a directoty
 # Test path: d:\cheetah_trials\gbm_detected_bad
@@ -60,30 +69,26 @@ def extract_image_paths(dir_path):
 def load_model_files(codebook_file, gtb_model_file):
     if not exists(codebook_file):
         logger.error('Can\'t find a codebook in the working directory')
-        error("Error: can't find a codebook in the working directory")
+        error("Error: can't find a codebook in the working directory", 1)
     if not exists(gtb_model_file):
         logger.error('Can\'t find a model file in the working directory')
-        error("Error: can't find a model file in the working directory")
+        error("Error: can't find a model file in the working directory", 2)
 
     with open(codebook_file, 'rb') as fid:
-        codebook = cPickle.load(fid)
-        logger.debug('Load a codebook')
-        # try:
-        #     codebook = pickle.load(fid)
-        #     logger.debug('Load a codebook')
-        # except:
-        #     logger.error('Can\'t load the codebook ' + codebook_file)
-        #     error('Error: can\'t load the codebook ' + codebook_file)
+        try:
+            codebook = cPickle.load(fid)
+            logger.debug('Load a codebook')
+        except:
+            logger.error('Can\'t load the codebook ' + codebook_file)
+            error('Error: can\'t load the codebook ' + codebook_file, 3)
 
     with open(gtb_model_file, 'rb') as fid:
-        model = cPickle.load(fid)
-        logger.debug('Load a model file')
-        # try:
-        #     model = pickle.load(fid)
-        #     logger.debug('Load a model file')
-        # except:
-        #     logger.error('Can\'t load the model ' + gtb_model_file)
-        #     error('Error: can\'t load the model ' + gtb_model_file)
+        try:
+            model = cPickle.load(fid)
+            logger.debug('Load a model file')
+        except:
+            logger.error('Can\'t load the model ' + gtb_model_file)
+            error('Error: can\'t load the model ' + gtb_model_file, 4)
 
     return codebook, model
 
@@ -107,7 +112,8 @@ def extract_img_feature(img, feature_name):
     elif feature_name == 'brisk':
         detector = cv2.BRISK(50)  # Not tested
     else:
-        print "Unknown image feature: " + feature_name
+        # Will not happen now because we define the feature right in the code
+        sys.stdout.write("Unknown image feature: " + feature_name + "\n")
         logger.warning('Unknown image feature: ' + feature_name)
         return None
     kp, des = detector.detectAndCompute(img, None)
@@ -129,17 +135,20 @@ def extract_lbp_hist(img, r, n):
 # Get feature vector for an image
 def get_feature_vector(codebook, image_path):
     img = cv2.imread(image_path, 0)
-    if 0 == img.size:
-        logger.warning('Can\'t read the image ' + image_path)
+    if (img is None) or (0 == img.size):
+        logger.warning('Can\'t read the file ' + image_path)
+        sys.stderr.write('Can\'t read the file ' + image_path + "\n")
         return None
     img = preprocess_img(img)
     bow = get_bow(codebook, img, 'surf', codebook.n_clusters)
     if (bow is None) or (len(bow) != codebook.n_clusters):
         logger.warning('Bad BoW descriptor for image ' + image_path)
+        sys.stderr.write('Bad BoW descriptor for image ' + image_path + "\n")
         return None
     lbp = extract_lbp_hist(img, 1, 8)
     if lbp is None:
         logger.warning('Bad LBP descriptor for image ' + image_path)
+        sys.stderr.write('Bad LBP descriptor for image ' + image_path + "\n")
         return None
 
     res = np.array(list(bow) + list(lbp)).astype(np.float32)
@@ -147,14 +156,12 @@ def get_feature_vector(codebook, image_path):
 
 # Given a model file and a feature vector, make prediction
 def make_prediction(model, feature):
+    if (np.isnan(feature).any() or np.isinf(feature).any()):
+        return None
     pred = model.predict(feature)
     # Dealing with values outside the range [0, 1]
     res = min(1, max(0, pred[0]))
     return res
-
-# http://stackoverflow.com/a/3173331
-def update_progress(progress):
-    print '\r[{0}] {1}%'.format('#'*(progress/10), progress),
 
 if __name__ == '__main__':
 
@@ -170,18 +177,23 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Recognizes images with spotted cats')
     parser.add_argument("input", \
                         help='Either path to a directory with images or a text file containing paths to images')
-    parser.add_argument("output", \
-                        help='Name of output file')
+    # parser.add_argument("output", \
+    #                     help='Name of output file')
 
     # TODO: prints 'None' at the end of the help message, fix it
     # print parser.print_help()
 
+    if len(sys.argv) < 2:
+        error("Error: too few arguments", 6)
+    if len(sys.argv) > 2:
+        error("Error: too many arguments", 7)
+
     args = parser.parse_args()
     input_source = args.input
-    output_file = args.output
+    # output_file = args.output
 
     logger.debug("Input source: " + input_source)
-    logger.debug("Output file: " + output_file)
+    # logger.debug("Output file: " + output_file)
     logger.debug('Codebook file name: ' + CODEBOOK_FILE)
     logger.debug('Model file name: ' + MODEL_FILE)
 
@@ -193,10 +205,10 @@ if __name__ == '__main__':
         flist = [x.strip('\n') for x in flist]
     else:
         logger.error('Unknown source of input data')
-        error('Error: unknown source of input data')
+        error('Error: unknown source of input data', 5)
 
     flist_len = len(flist)
-    print "Images to process: " + str(flist_len)
+    sys.stdout.write("Files to process: " + str(flist_len) + "\n")
     logger.debug('Number of files to process: ' + str(flist_len))
 
     # Read every image from the list, generate a feature vector
@@ -206,28 +218,39 @@ if __name__ == '__main__':
     logger.debug('The codebook parameters: \r\n' + pprint.pformat(codebook.get_params(), width=1, indent=4))
     logger.debug('The model parameters: \r\n' + pprint.pformat(gtb.get_params(), width=1, indent=4))
     logger.info('Start making predictions')
-    print "Making predictions..."
-    out_csv = csv.writer(open(output_file, 'wb'))
-    missing_images = 0
+    sys.stdout.write("Making predictions...\n")
+
+    missing_images_list = []
     predicted_images = 0
     for fname in flist:
+        sys.stdout.write('>')
+        sys.stdout.write('"' + fname + '";')
         feature = get_feature_vector(codebook, fname)
         if feature is None:
-            logger.warning('Can\'t make a prediction for image ' + fname)
-            missing_images = missing_images + 1
+            # TODO: in an image list can be a path to a non-image file, like text or move etc. We should not to add such a files into the missing_images_list
+            sys.stdout.write("\n")
+            logger.warning('Can\'t make a prediction for file ' + fname)
+            missing_images_list.append(fname)
             continue
         prediction = make_prediction(gtb, feature)
-        curr_row = [fname] + [str(prediction)]
+        if prediction is None:
+            sys.stdout.write("\n")
+            logger.warning('Can\'t make a prediction for file ' + fname)
+            missing_images_list.append(fname)
+            continue
+        #curr_row = '"' + fname + '";' + str(prediction)
         predicted_images = predicted_images + 1
-        out_csv.writerow(curr_row)
-        progress = 100*(missing_images + predicted_images) / flist_len
-        update_progress(progress)
+        #sys.stdout.write(curr_row + "\n")
+        sys.stdout.write(str(prediction) + "\n")
 
+    missing_images = len(missing_images_list)
     logger.info('Predictions made: ' + str(predicted_images))
-    logger.info('Missing images: ' + str(missing_images))
+    logger.info('Missing files: ' + str(missing_images))
     logger.info('Stop the application')
 
-    print "\nDone."
-    print 'Predictions made: ' + str(predicted_images)
+    sys.stdout.write("Done.\n")
+    sys.stdout.write('Predictions made: ' + str(predicted_images) + "\n")
     if (missing_images > 0):
-        print 'Could not predict ' + str(missing_images) + ' image(s)'
+        sys.stderr.write('Could not predict ' + str(missing_images) + ' file(s):\n')
+        for miss in missing_images_list:
+            sys.stderr.write('"' + miss + '"\n')

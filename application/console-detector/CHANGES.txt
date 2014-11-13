@@ -1,1 +1,2 @@
+v0.5, 2014-11-13 -- Main file changed in order to keep compatibility for integration with a GUI
 v0.1, 2014-08-08 -- Initial release.
